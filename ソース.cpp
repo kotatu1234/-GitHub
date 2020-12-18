@@ -7,6 +7,7 @@
 #include "resource.h"
 
 
+
 //########## マクロ定義 ##########
 #define GAME_WIDTH			800	//画面の横の大きさ
 #define GAME_HEIGHT			600	//画面の縦の大きさ
@@ -56,7 +57,7 @@
 #define IMAGE_END_COMP_CNT		1			//点滅カウンタ
 #define IMAGE_END_COMP_CNT_MAX	30			//点滅カウンタMAX
 
-#define IMAGE_END_FAIL_PATH		TEXT(".\\IMAGE\\mission_failed.png")	//エンドフォール画像
+#define IMAGE_END_FAIL_PATH		TEXT(".\\IMAGE\\マヒワend.png")	//エンドフォール画像
 #define IMAGE_END_FAIL_CNT		1			//点滅カウンタ
 #define IMAGE_END_FAIL_CNT_MAX	30			//点滅カウンタMAX
 
@@ -117,8 +118,6 @@
 //終了ダイアログ用
 #define MOUSE_R_CLICK_TITLE		TEXT("ゲーム中断")
 #define MOUSE_R_CLICK_CAPTION	TEXT("ゲームを中断し、タイトル画面に戻りますか？")
-
-
 
 
 
@@ -218,6 +217,8 @@ typedef struct STRUCT_TAMA
 	int changeImageCntMAX;				//画像を変えるためのカウント(MAX)
 	int speed;							//スピード
 }TAMA;	//弾の構造体
+
+
 
 typedef struct STRUCT_CHARA
 {
@@ -321,6 +322,8 @@ int GameScene;		//ゲームシーンを管理
 int GameEndKind;					//ゲームの終了状態
 RECT GoalRect = { -1,-1, -1, -1 };	//ゴールの当たり判定
 
+RECT KarasuRect = { -1,-1, -1, -1 };	//カラスの当たり判定
+
 
 
 IMAGE_BACK ImageBack[IMAGE_BACK_NUM];	//ゲームの背景
@@ -423,7 +426,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	SetWindowStyleMode(GAME_WINDOW_BAR);				//タイトルバーはデフォルトにする
 	SetMainWindowText(TEXT(GAME_WINDOW_NAME));			//ウィンドウのタイトルの文字
 	SetAlwaysRunFlag(TRUE);								//非アクティブでも実行する
-							//アイコンファイルを読込
+	
+
+
+														//アイコンファイルを読込
 
 	if (DxLib_Init() == -1) { return -1; }	//ＤＸライブラリ初期化処理
 
@@ -496,6 +502,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 				GoalRect.right = mapChip.width * (yoko + 1);
 				GoalRect.bottom = mapChip.height * (tate + 1);
 			}
+
+			//カラス位置を探す
+			if (mapData[tate][yoko] == k)
+			{
+				KarasuRect.left = mapChip.width * yoko;
+				KarasuRect.top = mapChip.height * tate;
+				KarasuRect.right = mapChip.width * (yoko + 1);
+				KarasuRect.bottom = mapChip.height * (tate + 1);
+			}
+
 		}
 	}
 
@@ -1015,6 +1031,12 @@ VOID MY_PLAY_PROC(VOID)
 		player.CenterX += player.speed;
 	}
 
+
+
+	
+
+	
+
 	//マウスを右クリックすると、タイトル画面に戻る
 	if (mouse.Button[MOUSE_INPUT_RIGHT] == TRUE)
 	{
@@ -1090,6 +1112,10 @@ VOID MY_PLAY_PROC(VOID)
 	//プレイヤーとマップがあたっていたら
 	if (MY_CHECK_MAP1_PLAYER_COLL(player.coll) == TRUE)
 	{
+		//(変更 通り抜けなし)
+		player.CenterX = player.collBeforePt.x;
+		player.CenterY = player.collBeforePt.y;
+
 		SetMousePoint(player.collBeforePt.x, player.collBeforePt.y);
 		IsMove = FALSE;
 	}
@@ -1117,6 +1143,25 @@ VOID MY_PLAY_PROC(VOID)
 	PlayerRect.top = player.image.y + 40;
 	PlayerRect.right = player.image.x + player.image.width - 40;
 	PlayerRect.bottom = player.image.y + player.image.height - 40;
+
+	//カラスに触れているかチェック
+	if (MY_CHECK_RECT_COLL(PlayerRect, KarasuRect) == TRUE)
+	{
+		//BGMが流れているなら
+		if (CheckSoundMem(BGM.handle) != 0)
+		{
+			StopSoundMem(BGM.handle);	//BGMを止める
+		}
+
+		SetMouseDispFlag(TRUE);			//マウスカーソルを表示
+
+		GameEndKind = GAME_END_FAIL;	//ミッションフォールト！
+
+		GameScene = GAME_SCENE_END;
+
+		return;	//強制的にエンド画面に飛ぶ
+	}
+
 
 	//ゴールに触れているかチェック
 	if (MY_CHECK_RECT_COLL(PlayerRect, GoalRect) == TRUE)
@@ -1227,6 +1272,10 @@ VOID MY_PLAY_PROC(VOID)
 	return;
 }
 
+
+
+
+
 //プレイ画面の描画
 VOID MY_PLAY_DRAW(VOID)
 {
@@ -1277,10 +1326,13 @@ VOID MY_PLAY_DRAW(VOID)
 				DrawBox(mapColl[tate][yoko].left, mapColl[tate][yoko].top, mapColl[tate][yoko].right, mapColl[tate][yoko].bottom, GetColor(255, 255, 0), FALSE);
 			}
 		}
-	}*/
+	}
+	*/
 
 	//ゴールの描画（デバッグ用）
-	DrawBox(GoalRect.left, GoalRect.top, GoalRect.right, GoalRect.bottom, GetColor(0, 255, 0), TRUE);
+	//DrawBox(GoalRect.left, GoalRect.top, GoalRect.right, GoalRect.bottom, GetColor(0, 255, 0), TRUE);
+
+	//DrawBox(KarasuRect.left, KarasuRect.top, KarasuRect.right, KarasuRect.bottom, GetColor(255, 255, 255), TRUE);
 
 
 	//プレイヤーのを描画する
@@ -1628,7 +1680,7 @@ BOOL MY_LOAD_IMAGE(VOID)
 
 
 
-	//赤弾の画像を分割する
+	//種の画像を分割する
 	int tamaRedRes = LoadDivGraph(
 		TAMA_YELLOW_PATH,										//赤弾のパス
 		TAMA_DIV_NUM, TAMA_DIV_TATE, TAMA_DIV_YOKO,			//赤弾を分割する数
@@ -1845,8 +1897,24 @@ BOOL MY_CHECK_MAP1_PLAYER_COLL(RECT player)
 			//プレイヤーとマップが当たっているとき
 			if (MY_CHECK_RECT_COLL(player, mapColl[tate][yoko]) == TRUE)
 			{
-				//壁のときは、プレイヤーとマップが当たっている
-				if (map[tate][yoko].kind == k) { return TRUE; }
+				//カラスのときは、プレイヤーとマップが当たっている
+				if (map[tate][yoko].kind == k)
+				{
+					//BGMが流れているなら
+					if (CheckSoundMem(BGM.handle) != 0)
+					{
+						StopSoundMem(BGM.handle);	//BGMを止める
+					}
+
+					SetMouseDispFlag(TRUE);			//マウスカーソルを表示
+
+					GameEndKind = GAME_END_FAIL;	//ミッションフォールト！
+
+					GameScene = GAME_SCENE_END;
+
+					
+					return TRUE;
+				}
 			}
 		}
 	}
