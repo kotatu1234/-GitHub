@@ -8,6 +8,7 @@
 
 
 
+
 //########## マクロ定義 ##########
 #define GAME_WIDTH			800	//画面の横の大きさ
 #define GAME_HEIGHT			600	//画面の縦の大きさ
@@ -119,6 +120,57 @@
 #define MOUSE_R_CLICK_TITLE		TEXT("ゲーム中断")
 #define MOUSE_R_CLICK_CAPTION	TEXT("ゲームを中断し、タイトル画面に戻りますか？")
 
+#define ENEMY_SHOT_MAX 20  //敵の弾
+
+//敵の弾
+struct ENEMY_SHOT {
+	double first_x;  //初期位置の座標
+	double first_y;  //初期位置の座標
+	double x[10];
+	double y[10];
+	double draw_x[10];  //連射する弾などもあるので座標は「10」個ぐらい用意
+	double draw_y[10];
+
+	double angle[10];  //好きな方向に飛ばしたい時に指定する角度
+
+	int init_flag;  //初期化用のフラグ、「敵ショットの入れ物」が使用中かどうかのフラグ、ショットの動き方。
+	int move_flag;
+	int move_type;
+
+	int max_bullet;  //一度に飛ばすショットの最大弾数になります。
+
+	int gamecount_point[5];  //「gamecount」の記録用と当たり判定の範囲
+	double range;
+
+	int enemy_num;
+};
+
+struct ENEMY_SHOT enemy_shot[ENEMY_SHOT_MAX];
+
+
+//ボスの弾初期化
+void my_init_enemy_shot() {
+	for (int i = 0; i < ENEMY_SHOT_MAX; i++) {
+		enemy_shot[i].first_x = 0;
+		enemy_shot[i].first_y = 0;
+		enemy_shot[i].init_flag = 0;
+		enemy_shot[i].move_flag = 0;
+		enemy_shot[i].move_type = 0;
+		enemy_shot[i].max_bullet = 0;
+		enemy_shot[i].range = 10;
+		enemy_shot[i].enemy_num = 0;
+		for (int j = 0; j < 10; j++) {
+			enemy_shot[i].x[j] = 0;
+			enemy_shot[i].y[j] = 0;
+			enemy_shot[i].draw_x[j] = 0;
+			enemy_shot[i].draw_y[j] = 0;
+			enemy_shot[i].angle[j] = 0;
+		}
+		for (int j = 0; j < 5; j++) {
+			enemy_shot[i].gamecount_point[j] = 0;
+		}
+	}
+}
 
 
 enum GAME_MAP_KIND
@@ -202,6 +254,8 @@ typedef struct STRUCT_MUSIC
 	char path[PATH_MAX];		//パス
 	int handle;					//ハンドル
 }MUSIC;	//音楽構造体
+
+
 
 typedef struct STRUCT_TAMA
 {
@@ -324,6 +378,8 @@ RECT GoalRect = { -1,-1, -1, -1 };	//ゴールの当たり判定
 
 RECT KarasuRect = { -1,-1, -1, -1 };	//カラスの当たり判定
 
+RECT EnemyRect = { -1,-1, -1, -1 };	//ボスの当たり判定
+
 
 
 IMAGE_BACK ImageBack[IMAGE_BACK_NUM];	//ゲームの背景
@@ -354,7 +410,7 @@ GAME_MAP_KIND mapData[GAME_MAP_TATE_MAX][GAME_MAP_YOKO_MAX]{
 		t,t,t,t,t,t,t,t,k,t,t,t,t,	// 1
 		t,t,t,t,k,t,t,t,t,t,t,t,k,	// 2
 		s,t,t,t,t,t,t,t,t,k,t,e,g,	// 3
-	    t,t,t,t,t,k,t,t,t,t,t,t,k,	// 4
+		t,t,t,t,t,k,t,t,t,t,t,t,k,	// 4
 		t,t,t,t,t,t,t,t,t,t,t,t,t,	// 5
 		t,t,k,t,t,t,t,t,k,t,t,t,t,	// 6
 		t,t,t,t,t,t,t,t,t,t,t,t,t,	// 7
@@ -426,7 +482,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	SetWindowStyleMode(GAME_WINDOW_BAR);				//タイトルバーはデフォルトにする
 	SetMainWindowText(TEXT(GAME_WINDOW_NAME));			//ウィンドウのタイトルの文字
 	SetAlwaysRunFlag(TRUE);								//非アクティブでも実行する
-	
+
 
 
 														//アイコンファイルを読込
@@ -510,6 +566,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 				KarasuRect.top = mapChip.height * tate;
 				KarasuRect.right = mapChip.width * (yoko + 1);
 				KarasuRect.bottom = mapChip.height * (tate + 1);
+			}
+
+			//ボス位置を探す
+			if (mapData[tate][yoko] == e)
+			{
+				EnemyRect.left = mapChip.width * yoko;
+				EnemyRect.top = mapChip.height * tate;
+				EnemyRect.right = mapChip.width * (yoko + 1);
+				EnemyRect.bottom = mapChip.height * (tate + 1);
 			}
 
 		}
@@ -887,8 +952,8 @@ VOID MY_START_PROC(VOID)
 		//スタート位置をマウスの位置にする
 		SetMousePoint(player.image.x, player.image.y);
 
-	
-		
+
+
 
 		//ゲームの終了状態を初期化する
 		GameEndKind = GAME_END_FAIL;
@@ -1033,9 +1098,6 @@ VOID MY_PLAY_PROC(VOID)
 
 
 
-	
-
-	
 
 	//マウスを右クリックすると、タイトル画面に戻る
 	if (mouse.Button[MOUSE_INPUT_RIGHT] == TRUE)
@@ -1125,14 +1187,14 @@ VOID MY_PLAY_PROC(VOID)
 		//画面内にマウスがいれば
 		/*if (mouse.Point.x >= 0 && mouse.Point.x <= GAME_WIDTH
 			&& mouse.Point.y >= 0 && mouse.Point.y <= GAME_HEIGHT)*/
-		//{
-			//プレイヤーの位置に置き換える
-			player.image.x = player.CenterX - player.image.width / 2;
-			player.image.y = player.CenterY - player.image.height / 2;
+			//{
+				//プレイヤーの位置に置き換える
+		player.image.x = player.CenterX - player.image.width / 2;
+		player.image.y = player.CenterY - player.image.height / 2;
 
-			//あたっていないときの座標を取得
-			player.collBeforePt.x = player.CenterX;
-			player.collBeforePt.y = player.CenterY;
+		//あたっていないときの座標を取得
+		player.collBeforePt.x = player.CenterX;
+		player.collBeforePt.y = player.CenterY;
 		//}
 	}
 
@@ -1162,6 +1224,25 @@ VOID MY_PLAY_PROC(VOID)
 		return;	//強制的にエンド画面に飛ぶ
 	}
 
+	//ボスに触れているかチェック
+	if (MY_CHECK_RECT_COLL(PlayerRect, EnemyRect) == TRUE)
+	{
+		//BGMが流れているなら
+		if (CheckSoundMem(BGM.handle) != 0)
+		{
+			StopSoundMem(BGM.handle);	//BGMを止める
+		}
+
+		SetMouseDispFlag(TRUE);			//マウスカーソルを表示
+
+		GameEndKind = GAME_END_FAIL;	//ミッションフォールト！
+
+		GameScene = GAME_SCENE_END;
+
+		return;	//強制的にエンド画面に飛ぶ
+	}
+
+
 
 	//ゴールに触れているかチェック
 	if (MY_CHECK_RECT_COLL(PlayerRect, GoalRect) == TRUE)
@@ -1180,6 +1261,8 @@ VOID MY_PLAY_PROC(VOID)
 
 		return;	//強制的にエンド画面に飛ぶ
 	}
+
+
 
 	//プレイヤーが画面外に出たら
 	if (player.image.x > GAME_WIDTH || player.image.y > GAME_HEIGHT
@@ -1221,7 +1304,7 @@ VOID MY_PLAY_PROC(VOID)
 
 					//弾のY位置はプレイヤーの上部分から発射
 					player.tama[cnt].y = player.CenterY - player.tama[cnt].width / 2;
-					
+
 
 					//弾を描画する
 					player.tama[cnt].IsDraw = TRUE;
@@ -1334,11 +1417,13 @@ VOID MY_PLAY_DRAW(VOID)
 
 	//DrawBox(KarasuRect.left, KarasuRect.top, KarasuRect.right, KarasuRect.bottom, GetColor(255, 255, 255), TRUE);
 
+	//DrawBox(EnemyRect.left, EnemyRect.top, EnemyRect.right, EnemyRect.bottom, GetColor(255, 255, 255), TRUE);
+
 
 	//プレイヤーのを描画する
 	DrawGraph(player.image.x, player.image.y, player.image.handle, TRUE);
 
-	
+
 
 	//当たり判定の描画（デバッグ用）
 	/*DrawBox(player.coll.left, player.coll.top, player.coll.right, player.coll.bottom, GetColor(255, 0, 0), FALSE);*/
@@ -1379,7 +1464,7 @@ VOID MY_PLAY_DRAW(VOID)
 			//弾を上に移動させる
 			if (player.tama[cnt].x < 0)
 			{
-				
+
 				player.tama[cnt].IsDraw = FALSE;	//描画終了
 			}
 			else
@@ -1912,7 +1997,7 @@ BOOL MY_CHECK_MAP1_PLAYER_COLL(RECT player)
 
 					GameScene = GAME_SCENE_END;
 
-					
+
 					return TRUE;
 				}
 			}
