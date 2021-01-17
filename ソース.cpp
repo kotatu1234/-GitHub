@@ -304,6 +304,7 @@ typedef struct STRUCT_IMAGE_BACK
 }IMAGE_BACK;	//背景画像の構造体
 
 
+
 typedef struct STRUCT_IMAGE_ROTA
 {
 	IMAGE image;		//IMAGE構造体
@@ -1224,7 +1225,7 @@ VOID MY_PLAY_PROC(VOID)
 		return;	//強制的にエンド画面に飛ぶ
 	}
 
-	//ボスに触れているかチェック
+	//ボスに触れている
 	if (MY_CHECK_RECT_COLL(PlayerRect, EnemyRect) == TRUE)
 	{
 		//BGMが流れているなら
