@@ -40,9 +40,10 @@
 //画像のパス
 #define IMAGE_BACK_PATH			TEXT(".\\IMAGE\\sora2.png")	//背景の画像
 #define IMAGE_PLAYER_PATH		TEXT(".\\IMAGE\\マヒワ.png")	//プレイヤーの画像
+//#define IMAGE_ENEMY_PAHT        TEXT(".\\IMAGE\\タカ.png")
 
 //敵の表示
-#define IMAGE_ENEMY_PATH        TEXT(".\\IMAGE\\鷹.png")//敵の画像
+#define IMAGE_ENEMY_PATH        TEXT(".\\IMAGE\\タカ.png")//敵の画像
 
 
 #define IMAGE_TITLE_BK_PATH			TEXT(".\\IMAGE\\空.png")		//タイトル背景の画像
@@ -71,11 +72,12 @@
 //弾の設定
 #define TAMA_CHANGE_MAX		 5	//5フレーム目で弾の画像を変える
 #define TAMA_MAX			16	//最大16発まで
+#define ENEMY_TAMA_MAX 20       //敵の弾
 
 #define TAMA_RED_PATH			TEXT(".\\IMAGE\\TAMA\\red.png")		//赤弾の画像
 #define TAMA_GREEN_PATH			TEXT(".\\IMAGE\\TAMA\\green.png")	//青弾の画像
-#define TAMA_BLUE_PATH			TEXT(".\\IMAGE\\TAMA\\blue.png")	//緑弾の画像
-#define TAMA_YELLOW_PATH		TEXT(".\\IMAGE\\TAMA\\yellow.png")	//黄弾の画像
+#define TAMA_HANE_PATH			TEXT(".\\IMAGE\\TAMA\\hane.png")	//緑弾の画像
+#define TAMA_TANE_PATH		TEXT(".\\IMAGE\\TAMA\\tane.png")	//黄弾の画像
 
 #define TAMA_DIV_WIDTH		16	//画像を分割する幅サイズ
 #define TAMA_DIV_HEIGHT		16	//画像を分割する高さサイズ
@@ -121,57 +123,9 @@
 #define MOUSE_R_CLICK_TITLE		TEXT("ゲーム中断")
 #define MOUSE_R_CLICK_CAPTION	TEXT("ゲームを中断し、タイトル画面に戻りますか？")
 
-#define ENEMY_SHOT_MAX 20  //敵の弾
-
-//敵の弾
-struct ENEMY_SHOT {
-	double first_x;  //初期位置の座標
-	double first_y;  //初期位置の座標
-	double x[10];
-	double y[10];
-	double draw_x[10];  //連射する弾などもあるので座標は「10」個ぐらい用意
-	double draw_y[10];
-
-	double angle[10];  //好きな方向に飛ばしたい時に指定する角度
-
-	int init_flag;  //初期化用のフラグ、「敵ショットの入れ物」が使用中かどうかのフラグ、ショットの動き方。
-	int move_flag;
-	int move_type;
-
-	int max_bullet;  //一度に飛ばすショットの最大弾数になります。
-
-	int gamecount_point[5];  //「gamecount」の記録用と当たり判定の範囲
-	double range;
-
-	int enemy_num;
-};
-
-struct ENEMY_SHOT enemy_shot[ENEMY_SHOT_MAX];
 
 
-//ボスの弾初期化
-void my_init_enemy_shot() {
-	for (int i = 0; i < ENEMY_SHOT_MAX; i++) {
-		enemy_shot[i].first_x = 0;
-		enemy_shot[i].first_y = 0;
-		enemy_shot[i].init_flag = 0;
-		enemy_shot[i].move_flag = 0;
-		enemy_shot[i].move_type = 0;
-		enemy_shot[i].max_bullet = 0;
-		enemy_shot[i].range = 10;
-		enemy_shot[i].enemy_num = 0;
-		for (int j = 0; j < 10; j++) {
-			enemy_shot[i].x[j] = 0;
-			enemy_shot[i].y[j] = 0;
-			enemy_shot[i].draw_x[j] = 0;
-			enemy_shot[i].draw_y[j] = 0;
-			enemy_shot[i].angle[j] = 0;
-		}
-		for (int j = 0; j < 5; j++) {
-			enemy_shot[i].gamecount_point[j] = 0;
-		}
-	}
-}
+
 
 
 enum GAME_MAP_KIND
@@ -272,6 +226,28 @@ typedef struct STRUCT_TAMA
 	int changeImageCntMAX;				//画像を変えるためのカウント(MAX)
 	int speed;							//スピード
 }TAMA;	//弾の構造体
+
+//敵の弾
+struct ENEMY_SHOT 
+{
+	IMAGE image;				//IMAGE構造体
+	int speed;					//速さ
+	int CenterX;				//中心X
+	int CenterY;				//中心Y
+
+	MUSIC musicShot;			//敵の発射音
+
+	BOOL CanShot;				//ショットできるか
+	int ShotReLoadCnt;			//ショットリロード時間
+	int ShotReLoadCntMAX;		//ショットリロード時間(MAX)
+
+	TAMA tama[ENEMY_TAMA_MAX];		//ショットする弾
+
+	RECT coll;					//当たり判定
+	iPOINT collBeforePt;		//当たる前の座標
+};
+
+struct ENEMY_SHOT enemy_shot[ENEMY_TAMA_MAX];
 
 
 
@@ -411,13 +387,13 @@ GAME_MAP_KIND mapData[GAME_MAP_TATE_MAX][GAME_MAP_YOKO_MAX]{
 	//  0,1,2,3,4,5,6,7,8,9,0,1,2,
 		t,t,t,t,t,t,t,t,t,t,t,t,t,	// 0
 		t,t,t,t,t,t,t,t,k,t,t,t,t,	// 1
-		t,t,t,t,k,t,t,t,t,t,t,t,k,	// 2
-		s,t,t,t,t,t,t,t,t,k,t,e,g,	// 3
-		t,t,t,t,t,k,t,t,t,t,t,t,k,	// 4
+		t,t,t,t,k,t,t,t,t,t,t,t,g,	// 2
+		s,t,t,t,t,t,t,t,t,t,t,t,t,	// 3
+		t,t,t,t,t,k,t,t,t,t,t,t,t,	// 4
 		t,t,t,t,t,t,t,t,t,t,t,t,t,	// 5
 		t,t,k,t,t,t,t,t,k,t,t,t,t,	// 6
 		t,t,t,t,t,t,t,t,t,t,t,t,t,	// 7
-		t,t,t,t,t,t,t,t,t,t,t,t,t,	// 8
+		t,t,t,t,t,t,k,t,t,t,t,t,t,	// 8
 };	//ゲームのマップ
 
 //ゲームマップの初期化
@@ -431,6 +407,7 @@ MAP map[GAME_MAP_TATE_MAX][GAME_MAP_YOKO_MAX];
 
 //スタートの位置
 iPOINT startPt{ -1,-1 };
+iPOINT goalPt{ -1,-1 };
 
 //マップの当たり判定
 RECT mapColl[GAME_MAP_TATE_MAX][GAME_MAP_YOKO_MAX];
@@ -505,10 +482,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	player.ShotReLoadCnt = 0;
 	player.ShotReLoadCntMAX = CHARA_RELOAD_LOW;
 
-	//敵の設定
-	enemy.CanShot = TRUE;
-	enemy.ShotReLoadCnt = 0;
-	enemy.ShotReLoadCntMAX = CHARA_RELOAD_LOW;
+	//敵の設定(こうち：コメントアウトしました)
+	//enemy.CanShot = TRUE;
+	//enemy.ShotReLoadCnt = 0;
+	//enemy.ShotReLoadCntMAX = CHARA_RELOAD_LOW;
 
 	//フォントを一時的にインストール
 	if (MY_FONT_INSTALL_ONCE() == FALSE) { return -1; }
@@ -562,6 +539,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 				GoalRect.top = mapChip.height * tate;
 				GoalRect.right = mapChip.width * (yoko + 1);
 				GoalRect.bottom = mapChip.height * (tate + 1);
+
+				goalPt.x = mapChip.width * yoko + mapChip.width / 2;	//中心X座標を取得
+				goalPt.y = mapChip.height * tate + mapChip.height / 2;	//中心Y座標を取得
 			}
 
 			//カラス位置を探す
@@ -573,14 +553,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 				KarasuRect.bottom = mapChip.height * (tate + 1);
 			}
 
-			//ボス位置を探す
-			if (mapData[tate][yoko] == e)
-			{
-				EnemyRect.left = mapChip.width * yoko;
-				EnemyRect.top = mapChip.height * tate;
-				EnemyRect.right = mapChip.width * (yoko + 1);
-				EnemyRect.bottom = mapChip.height * (tate + 1);
-			}
 
 		}
 	}
@@ -940,8 +912,6 @@ VOID MY_START_PROC(VOID)
 			StopSoundMem(BGM_TITLE.handle);	//BGMを止める
 		}
 
-		SetMouseDispFlag(FALSE);			//マウスカーソルを非表示
-
 		//プレイヤーの中心位置を計算する
 		player.CenterX = startPt.x;
 		player.CenterY = startPt.y;
@@ -954,26 +924,39 @@ VOID MY_START_PROC(VOID)
 		player.collBeforePt.x = player.CenterX;
 		player.collBeforePt.y = player.CenterY;
 
-		//スタート位置をマウスの位置にする
-		SetMousePoint(player.image.x, player.image.y);
 
+		//int Eyoko = GAME_MAP_YOKO_MAX / 2;
+		//int Etate = GAME_MAP_TATE_MAX / 2;
 
-		//敵の中心位置を計算する
-		enemy.CenterX = startPt.x;
-		enemy.CenterY = startPt.y;
+		//enemy.image.x = Eyoko;
+		//enemy.image.y = Etate;
+
+		////敵の中心位置を計算する
+		//enemy.CenterX = startPt.x;
+		//enemy.CenterY = startPt.y;
 
 		//敵の画像の位置を設定する
-		enemy.image.x = enemy.CenterX;
-		enemy.image.y = enemy.CenterY;
+		//enemy.image.x = enemy.CenterX;
+		//enemy.image.y = enemy.CenterY;
 
 		//敵の当たる以前の位置を設定する
-		enemy.collBeforePt.x = enemy.CenterX;
-		enemy.collBeforePt.y = enemy.CenterY;
+		//enemy.collBeforePt.x = enemy.CenterX;
+		//enemy.collBeforePt.y = enemy.CenterY;
 
 		//スタート位置をマウスの位置にする
-		SetMousePoint(enemy.image.x, enemy.image.y);
+		//SetMousePoint(enemy.image.x, enemy.image.y);
 
+		////プレイヤーの中心位置を計算する(こうち↑直してね)
+		//enemy.CenterX = startPt.x;
+		//enemy.CenterY = startPt.y;
 
+		////プレイヤーの画像の位置を設定する
+		//enemy.image.x = enemy.CenterX;
+		//enemy.image.y = enemy.CenterY;
+
+		////プレイヤーの当たる以前の位置を設定する
+		//enemy.collBeforePt.x = enemy.CenterX;
+		//enemy.collBeforePt.y = enemy.CenterY;
 
 
 		//ゲームの終了状態を初期化する
@@ -1126,9 +1109,6 @@ VOID MY_PLAY_PROC(VOID)
 		//クリックした座標を取得しておく
 		iPOINT R_ClickPt = mouse.Point;
 
-		//マウスを表示
-		SetMouseDispFlag(TRUE);
-
 		//終了ダイアログを表示
 		int Ret = MessageBox(GetMainWindowHandle(), MOUSE_R_CLICK_CAPTION, MOUSE_R_CLICK_TITLE, MB_YESNO);
 
@@ -1140,20 +1120,10 @@ VOID MY_PLAY_PROC(VOID)
 				StopSoundMem(BGM.handle);	//BGMを止める
 			}
 
-			SetMouseDispFlag(TRUE);			//マウスカーソルを表示
-
 			//強制的にタイトル画面に飛ぶ
 			GameScene = GAME_SCENE_START;
 			return;
 
-		}
-		else if (Ret == IDNO)	//NOなら、ゲームを続行する
-		{
-			//マウスの位置を、クリックする前に戻す
-			SetMousePoint(R_ClickPt.x, R_ClickPt.y);
-
-			//マウスを非表示にする。
-			SetMouseDispFlag(FALSE);
 		}
 	}
 
@@ -1184,6 +1154,7 @@ VOID MY_PLAY_PROC(VOID)
 
 	}*/
 
+
 	//プレイヤーの当たり判定の設定
 	player.coll.left = player.CenterX - mapChip.width / 2 + 5;
 	player.coll.top = player.CenterY - mapChip.height / 2 + 5;
@@ -1191,7 +1162,7 @@ VOID MY_PLAY_PROC(VOID)
 	player.coll.bottom = player.CenterY + mapChip.height / 2 - 5;
 
 
-	//敵の当たり判定の設定
+	
 	enemy.coll.left = enemy.CenterX - mapChip.width / 2 + 5;
 	enemy.coll.top = enemy.CenterY - mapChip.height / 2 + 5;
 	enemy.coll.right = enemy.CenterX + mapChip.width / 2 - 5;
@@ -1207,7 +1178,6 @@ VOID MY_PLAY_PROC(VOID)
 		player.CenterX = player.collBeforePt.x;
 		player.CenterY = player.collBeforePt.y;
 
-		SetMousePoint(player.collBeforePt.x, player.collBeforePt.y);
 		IsMove = FALSE;
 	}
 
@@ -1235,7 +1205,7 @@ VOID MY_PLAY_PROC(VOID)
 	PlayerRect.right = player.image.x + player.image.width - 40;
 	PlayerRect.bottom = player.image.y + player.image.height - 40;
 
-
+	
 	RECT EnemyRect;
 	EnemyRect.left = enemy.image.x + 40;
 	EnemyRect.top = enemy.image.y + 40;
@@ -1251,8 +1221,6 @@ VOID MY_PLAY_PROC(VOID)
 			StopSoundMem(BGM.handle);	//BGMを止める
 		}
 
-		SetMouseDispFlag(TRUE);			//マウスカーソルを表示
-
 		GameEndKind = GAME_END_FAIL;	//ミッションフォールト！
 
 		GameScene = GAME_SCENE_END;
@@ -1260,7 +1228,7 @@ VOID MY_PLAY_PROC(VOID)
 		return;	//強制的にエンド画面に飛ぶ
 	}
 
-	//ボスに触れている
+	
 	if (MY_CHECK_RECT_COLL(PlayerRect, EnemyRect) == TRUE)
 	{
 		//BGMが流れているなら
@@ -1288,9 +1256,6 @@ VOID MY_PLAY_PROC(VOID)
 		{
 			StopSoundMem(BGM.handle);	//BGMを止める
 		}
-
-		SetMouseDispFlag(TRUE);			//マウスカーソルを表示
-
 		GameEndKind = GAME_END_COMP;	//ミッションコンプリート！
 
 		GameScene = GAME_SCENE_END;
@@ -1309,9 +1274,6 @@ VOID MY_PLAY_PROC(VOID)
 		{
 			StopSoundMem(BGM.handle);	//BGMを止める
 		}
-
-		SetMouseDispFlag(TRUE);			//マウスカーソルを表示
-
 		GameEndKind = GAME_END_FAIL;	//ミッションフォールト！
 
 		GameScene = GAME_SCENE_END;
@@ -1332,14 +1294,14 @@ VOID MY_PLAY_PROC(VOID)
 			enemy.CanShot = FALSE;
 
 			//空いているスロットで、弾の描画をする
-			for (int cnt = 0; cnt < TAMA_MAX; cnt++)
+			for (int cnt = 0; cnt < ENEMY_TAMA_MAX; cnt++)
 			{
 				if (enemy.tama[cnt].IsDraw == FALSE)
 				{
-					//弾のX位置はプレイヤーの中心から発射
+					//弾のX位置は敵の中心から発射
 					enemy.tama[cnt].x = enemy.image.x + 50;
 
-					//弾のY位置はプレイヤーの上部分から発射
+					
 					enemy.tama[cnt].y = enemy.CenterY - enemy.tama[cnt].width / 2;
 
 
@@ -1351,6 +1313,8 @@ VOID MY_PLAY_PROC(VOID)
 			}
 		}
 	}
+
+
 
 
 
@@ -1500,7 +1464,7 @@ VOID MY_PLAY_DRAW(VOID)
 
 
 	//当たり判定の描画（デバッグ用）
-	/*DrawBox(player.coll.left, player.coll.top, player.coll.right, player.coll.bottom, GetColor(255, 0, 0), FALSE);*/
+	//DrawBox(player.coll.left, player.coll.top, player.coll.right, player.coll.bottom, GetColor(255, 0, 0), FALSE);
 
 
 	//プレイヤー
@@ -1553,52 +1517,55 @@ VOID MY_PLAY_DRAW(VOID)
 
 		//敵
 
-		//描画できる弾の処理
-		if (enemy.tama[cnt].IsDraw == TRUE)
+		//弾の情報を生成
+		for (int cnt = 0; cnt < ENEMY_TAMA_MAX; cnt++)
 		{
-			//弾を描画する
-			DrawGraph(
-				enemy.tama[cnt].x,
-				enemy.tama[cnt].y,
-				enemy.tama[cnt].handle[enemy.tama[cnt].nowImageKind],	//現在の画像の種類にあったハンドル
-				TRUE);
+			//描画できる弾の処理
+			if (enemy.tama[cnt].IsDraw == TRUE)
+			{
+				//弾を描画する
+				DrawGraph(
+					enemy.tama[cnt].x,
+					enemy.tama[cnt].y,
+					enemy.tama[cnt].handle[enemy.tama[cnt].nowImageKind],	//現在の画像の種類にあったハンドル
+					TRUE);
 
-			//弾の表示フレームを増やす
-			if (enemy.tama[cnt].changeImageCnt < enemy.tama[cnt].changeImageCntMAX)
-			{
-				enemy.tama[cnt].changeImageCnt++;
-			}
-			else
-			{
-				//現在表示している弾の種類が、まだあるとき
-				if (enemy.tama[cnt].nowImageKind < TAMA_DIV_NUM - 1)	//-1しないと、最後の種類のときに++されてしまう
+				//弾の表示フレームを増やす
+				if (enemy.tama[cnt].changeImageCnt < enemy.tama[cnt].changeImageCntMAX)
 				{
-					enemy.tama[cnt].nowImageKind++;	//弾を次の種類にする
+					enemy.tama[cnt].changeImageCnt++;
 				}
 				else
 				{
-					enemy.tama[cnt].nowImageKind = 0;	//弾の種類をリセットする
+					//現在表示している弾の種類が、まだあるとき
+					if (enemy.tama[cnt].nowImageKind < TAMA_DIV_NUM - 1)	//-1しないと、最後の種類のときに++されてしまう
+					{
+						enemy.tama[cnt].nowImageKind++;	//弾を次の種類にする
+					}
+					else
+					{
+						enemy.tama[cnt].nowImageKind = 0;	//弾の種類をリセットする
+					}
+
+					enemy.tama[cnt].changeImageCnt = 0;
 				}
 
-				enemy.tama[cnt].changeImageCnt = 0;
-			}
+				//弾を上に移動させる
+				if (enemy.tama[cnt].x < 0)
+				{
 
-			//弾を上に移動させる
-			if (enemy.tama[cnt].x < 0)
-			{
-
-				enemy.tama[cnt].IsDraw = FALSE;	//描画終了
-			}
-			else
-			{
-				enemy.tama[cnt].x += enemy.tama[cnt].speed;
+					enemy.tama[cnt].IsDraw = FALSE;	//描画終了
+				}
+				else
+				{
+					enemy.tama[cnt].x -= enemy.tama[cnt].speed;
+				}
 			}
 		}
 
-
 	}
 
-	//DrawString(0, 0, "プレイ画面(スペースキーを押して下さい)", GetColor(255, 255, 255));
+	DrawString(0, 0, "プレイ画面(スペースキーを押して下さい)", GetColor(255, 255, 255));
 	return;
 }
 
@@ -1636,8 +1603,6 @@ VOID MY_END_PROC(VOID)
 		{
 			StopSoundMem(BGM_FAIL.handle);	//BGMを止める
 		}
-
-		SetMouseDispFlag(TRUE);		//マウスカーソルを表示
 
 		GameScene = GAME_SCENE_START;
 	}
@@ -1891,46 +1856,64 @@ BOOL MY_LOAD_IMAGE(VOID)
 	player.speed = CHARA_SPEED_LOW;									//スピードを設定
 
 
-	//敵の画像
-	strcpy_s(enemy.image.path, IMAGE_PLAYER_PATH);		//パスの設定
+	////敵の画像
+	//strcpy_s(enemy.image.path, IMAGE_ENEMY_PATH);		//パスの設定
+	//enemy.image.handle = LoadGraph(enemy.image.path);	//読み込み
+	//if (enemy.image.handle == -1)
+	//{
+	//	//エラーメッセージ表示
+	//	MessageBox(GetMainWindowHandle(), IMAGE_ENEMY_PATH, IMAGE_LOAD_ERR_TITLE, MB_OK);
+	//	return FALSE;
+	//}
+	//GetGraphSize(enemy.image.handle, &enemy.image.width, &enemy.image.height);	//画像の幅と高さを取得
+	//enemy.image.x = GAME_WIDTH / 2 - enemy.image.width / 2;		//左右中央揃え
+	//enemy.image.y = GAME_HEIGHT / 2 - enemy.image.height / 2;		//上下中央揃え
+	//enemy.CenterX = enemy.image.x + enemy.image.width / 2;		//画像の横の中心を探す
+	//enemy.CenterY = enemy.image.y + enemy.image.height / 2;		//画像の縦の中心を探す
+	//enemy.speed = CHARA_SPEED_LOW;									//スピードを設定
+
+	//プレイヤーの画像(こうち)
+	strcpy_s(enemy.image.path, IMAGE_ENEMY_PATH);		//パスの設定
 	enemy.image.handle = LoadGraph(enemy.image.path);	//読み込み
 	if (enemy.image.handle == -1)
 	{
 		//エラーメッセージ表示
-		MessageBox(GetMainWindowHandle(), IMAGE_PLAYER_PATH, IMAGE_LOAD_ERR_TITLE, MB_OK);
+		MessageBox(GetMainWindowHandle(), IMAGE_ENEMY_PATH, IMAGE_LOAD_ERR_TITLE, MB_OK);
 		return FALSE;
 	}
 	GetGraphSize(enemy.image.handle, &enemy.image.width, &enemy.image.height);	//画像の幅と高さを取得
-	enemy.image.x = GAME_WIDTH / 2 - enemy.image.width / 2;		//左右中央揃え
-	enemy.image.y = GAME_HEIGHT / 2 - enemy.image.height / 2;		//上下中央揃え
+	enemy.image.x = GAME_WIDTH -200;		//左右中央揃え
+	enemy.image.y = GAME_HEIGHT -600;	//上下中央揃え
 	enemy.CenterX = enemy.image.x + enemy.image.width / 2;		//画像の横の中心を探す
 	enemy.CenterY = enemy.image.y + enemy.image.height / 2;		//画像の縦の中心を探す
-	enemy.speed = CHARA_SPEED_LOW;									//スピードを設定
-
+	enemy.speed = CHARA_SPEED_LOW;								//スピードを設定
 
 
 
 
 	//種の画像を分割する
 	int tamaRedRes = LoadDivGraph(
-		TAMA_YELLOW_PATH,										//赤弾のパス
+		TAMA_TANE_PATH,										//赤弾のパス
 		TAMA_DIV_NUM, TAMA_DIV_TATE, TAMA_DIV_YOKO,			//赤弾を分割する数
 		TAMA_DIV_WIDTH, TAMA_DIV_HEIGHT,					//画像を分割するの幅と高さ
 		&player.tama[0].handle[0]);							//分割した画像が入るハンドル
 
-	//敵の弾の画像を分割する
-	int tamaRedRes = LoadDivGraph(
-		TAMA_YELLOW_PATH,										//赤弾のパス
-		TAMA_DIV_NUM, TAMA_DIV_TATE, TAMA_DIV_YOKO,			//赤弾を分割する数
-		TAMA_DIV_WIDTH, TAMA_DIV_HEIGHT,					//画像を分割するの幅と高さ
-		&enemy.tama[0].handle[0]);							//分割した画像が入るハンドル
+	
+
+
+
+
 
 	if (tamaRedRes == -1)
 	{
 		//エラーメッセージ表示
-		MessageBox(GetMainWindowHandle(), TAMA_YELLOW_PATH, IMAGE_LOAD_ERR_TITLE, MB_OK);
+		MessageBox(GetMainWindowHandle(), TAMA_TANE_PATH, IMAGE_LOAD_ERR_TITLE, MB_OK);
 		return FALSE;
 	}
+	
+
+
+
 
 	//幅と高さを取得
 	GetGraphSize(player.tama[0].handle[0], &player.tama[0].width, &player.tama[0].height);
@@ -1943,7 +1926,7 @@ BOOL MY_LOAD_IMAGE(VOID)
 	for (int cnt = 0; cnt < TAMA_MAX; cnt++)
 	{
 		//パスをコピー
-		strcpyDx(player.tama[cnt].path, TEXT(TAMA_YELLOW_PATH));
+		strcpyDx(player.tama[cnt].path, TEXT(TAMA_TANE_PATH));
 
 		for (int i_num = 0; i_num < TAMA_DIV_NUM; i_num++)
 		{
@@ -1987,7 +1970,7 @@ BOOL MY_LOAD_IMAGE(VOID)
 	for (int cnt = 0; cnt < TAMA_MAX; cnt++)
 	{
 		//パスをコピー
-		strcpyDx(enemy.tama[cnt].path, TEXT(TAMA_YELLOW_PATH));
+		strcpyDx(enemy.tama[cnt].path, TEXT(TAMA_TANE_PATH));
 
 		for (int i_num = 0; i_num < TAMA_DIV_NUM; i_num++)
 		{
@@ -2196,9 +2179,6 @@ BOOL MY_CHECK_MAP1_PLAYER_COLL(RECT player)
 					{
 						StopSoundMem(BGM.handle);	//BGMを止める
 					}
-
-					SetMouseDispFlag(TRUE);			//マウスカーソルを表示
-
 					GameEndKind = GAME_END_FAIL;	//ミッションフォールト！
 
 					GameScene = GAME_SCENE_END;
