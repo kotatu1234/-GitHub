@@ -38,7 +38,7 @@
 #define IMAGE_LOAD_ERR_TITLE	TEXT("画像読み込みエラー")
 
 //画像のパス
-#define IMAGE_BACK_PATH			TEXT(".\\IMAGE\\sora2.png")	//背景の画像
+#define IMAGE_BACK_PATH			TEXT(".\\IMAGE\\sora.png")	//背景の画像
 #define IMAGE_PLAYER_PATH		TEXT(".\\IMAGE\\マヒワ.png")	//プレイヤーの画像
 //#define IMAGE_ENEMY_PAHT        TEXT(".\\IMAGE\\タカ.png")
 
@@ -64,7 +64,7 @@
 #define IMAGE_END_FAIL_CNT_MAX	30			//点滅カウンタMAX
 
 
-#define IMAGE_BACK_REV_PATH		TEXT(".\\IMAGE\\sora2.png")	//背景の画像
+#define IMAGE_BACK_REV_PATH		TEXT(".\\IMAGE\\sora.png")	//背景の画像
 #define IMAGE_BACK_NUM			4								//背景の画像の数
 
 
@@ -97,7 +97,7 @@
 
 #define MUSIC_BGM_TITLE_PATH		TEXT(".\\MUSIC\\タイトル.mp3")	//タイトルのBGM
 #define MUSIC_BGM_COMP_PATH			TEXT(".\\MUSIC\\エンド.mp3")				//コンプリートBGM
-#define MUSIC_BGM_FAIL_PATH			TEXT(".\\MUSIC\\プレイ.mp3")					//フォールトBGM
+#define MUSIC_BGM_FAIL_PATH			TEXT(".\\MUSIC\\フォールト.mp3")					//フォールトBGM
 
 
 #define GAME_MAP_TATE_MAX	9	//マップの縦の数
@@ -148,6 +148,12 @@ enum GAME_END {
 	GAME_END_COMP,	//コンプリート
 	GAME_END_FAIL	//フォールト
 };	//ゲームの終了状態
+
+enum ENEMY_SPEED {
+	ENEMY_SPEED_LOW = 5,
+	ENEMY_SPEED_MIDI = 2,
+	ENEMY_SPEED_HIGH = 3
+};
 
 enum CHARA_SPEED {
 	CHARA_SPEED_LOW = 5,
@@ -208,6 +214,9 @@ typedef struct STRUCT_MUSIC
 {
 	char path[PATH_MAX];		//パス
 	int handle;					//ハンドル
+
+	BOOL Check;   //コンプリート専用のチェッカー
+	BOOL BGM_fail_Check;   //フォールト専用のチェッカー
 }MUSIC;	//音楽構造体
 
 
@@ -387,11 +396,11 @@ GAME_MAP_KIND mapData[GAME_MAP_TATE_MAX][GAME_MAP_YOKO_MAX]{
 	//  0,1,2,3,4,5,6,7,8,9,0,1,2,
 		t,t,t,t,t,t,t,t,t,t,t,t,t,	// 0
 		t,t,t,t,t,t,t,t,k,t,t,t,t,	// 1
-		t,t,t,t,k,t,t,t,t,t,t,t,g,	// 2
+		t,t,t,t,k,t,t,t,t,t,t,t,t,	// 2
 		s,t,t,t,t,t,t,t,t,t,t,t,t,	// 3
 		t,t,t,t,t,k,t,t,t,t,t,t,t,	// 4
 		t,t,t,t,t,t,t,t,t,t,t,t,t,	// 5
-		t,t,k,t,t,t,t,t,k,t,t,t,t,	// 6
+		t,t,k,t,t,t,t,t,k,t,t,g,t,	// 6
 		t,t,t,t,t,t,t,t,t,t,t,t,t,	// 7
 		t,t,t,t,t,t,k,t,t,t,t,t,t,	// 8
 };	//ゲームのマップ
@@ -482,10 +491,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	player.ShotReLoadCnt = 0;
 	player.ShotReLoadCntMAX = CHARA_RELOAD_LOW;
 
-	//敵の設定(こうち：コメントアウトしました)
-	//enemy.CanShot = TRUE;
-	//enemy.ShotReLoadCnt = 0;
-	//enemy.ShotReLoadCntMAX = CHARA_RELOAD_LOW;
+	//敵の設定
+	enemy.CanShot = TRUE;
+	enemy.ShotReLoadCnt = 0;
+	enemy.ShotReLoadCntMAX = CHARA_RELOAD_LOW;
+
+	//BGMの設定
+	//BGM_COMP.Check = TRUE; //TRUEは正しい
+	//BGM_FAIL.BGM_fail_Check = TRUE; //FALSEは正し区内
 
 	//フォントを一時的にインストール
 	if (MY_FONT_INSTALL_ONCE() == FALSE) { return -1; }
@@ -940,8 +953,8 @@ VOID MY_START_PROC(VOID)
 		//enemy.image.y = enemy.CenterY;
 
 		//敵の当たる以前の位置を設定する
-		//enemy.collBeforePt.x = enemy.CenterX;
-		//enemy.collBeforePt.y = enemy.CenterY;
+		enemy.collBeforePt.x = enemy.CenterX;
+		enemy.collBeforePt.y = enemy.CenterY;
 
 		//スタート位置をマウスの位置にする
 		//SetMousePoint(enemy.image.x, enemy.image.y);
@@ -1225,10 +1238,12 @@ VOID MY_PLAY_PROC(VOID)
 
 		GameScene = GAME_SCENE_END;
 
+		BGM_FAIL.Check = TRUE;
+
 		return;	//強制的にエンド画面に飛ぶ
 	}
 
-	
+	//敵に触れているかチェック
 	if (MY_CHECK_RECT_COLL(PlayerRect, EnemyRect) == TRUE)
 	{
 		//BGMが流れているなら
@@ -1242,6 +1257,8 @@ VOID MY_PLAY_PROC(VOID)
 		GameEndKind = GAME_END_FAIL;	//ミッションフォールト！
 
 		GameScene = GAME_SCENE_END;
+
+		BGM_FAIL.Check = TRUE;
 
 		return;	//強制的にエンド画面に飛ぶ
 	}
@@ -1258,7 +1275,10 @@ VOID MY_PLAY_PROC(VOID)
 		}
 		GameEndKind = GAME_END_COMP;	//ミッションコンプリート！
 
+
 		GameScene = GAME_SCENE_END;
+
+		BGM_COMP.Check = TRUE;
 
 		return;	//強制的にエンド画面に飛ぶ
 	}
@@ -1277,6 +1297,8 @@ VOID MY_PLAY_PROC(VOID)
 		GameEndKind = GAME_END_FAIL;	//ミッションフォールト！
 
 		GameScene = GAME_SCENE_END;
+		
+		BGM_FAIL.Check = TRUE;
 
 		return;	//強制的にエンド画面に飛ぶ
 	}
@@ -1612,12 +1634,16 @@ VOID MY_END_PROC(VOID)
 	case GAME_END_COMP:
 		//コンプリートのとき
 
-		//BGMが流れていないなら
-		if (CheckSoundMem(BGM_COMP.handle) == 0)
+		if (BGM_COMP.Check == TRUE)
 		{
-			//BGMの音量を下げる
-			ChangeVolumeSoundMem(255 * 50 / 100, BGM_COMP.handle);	//50%の音量にする
-			PlaySoundMem(BGM_COMP.handle, DX_PLAYTYPE_LOOP);
+			//BGMが流れていないなら
+			if (CheckSoundMem(BGM_COMP.handle) == 0)
+			{
+				//BGMの音量を下げる
+				ChangeVolumeSoundMem(255 * 50 / 100, BGM_COMP.handle);	//50%の音量にする
+				PlaySoundMem(BGM_COMP.handle, DX_PLAYTYPE_BACK);//音を再生
+				BGM_COMP.Check = FALSE; //BGMが1回
+			}
 		}
 
 		//コンプリートを点滅
@@ -1643,13 +1669,28 @@ VOID MY_END_PROC(VOID)
 	case GAME_END_FAIL:
 		//フォールトのとき
 
-		//BGMが流れていないなら
-		if (CheckSoundMem(BGM_FAIL.handle) == 0)
-		{
-			//BGMの音量を下げる
-			ChangeVolumeSoundMem(255 * 50 / 100, BGM_FAIL.handle);	//50%の音量にする
-			PlaySoundMem(BGM_FAIL.handle, DX_PLAYTYPE_LOOP);
+		////BGMが流れていないなら
+		//if (CheckSoundMem(BGM_FAIL.handle) == 0)
+		//{
+		//	//BGMの音量を下げる
+		//	ChangeVolumeSoundMem(255 * 50 / 100, BGM_FAIL.handle);	//50%の音量にする
+		//	PlaySoundMem(BGM_FAIL.handle, DX_PLAYTYPE_BACK);
+		//	BGM_FAIL.BGM_fail_Check = FALSE; //BGMが1回
+		//}
+
+		if (BGM_FAIL.Check == TRUE)
+		{	
+			//BGMが流れていないなら
+			if (CheckSoundMem(BGM_FAIL.handle) == 0)
+			{
+				//BGMの音量を下げる
+				ChangeVolumeSoundMem(255 * 50 / 100, BGM_FAIL.handle);	//50%の音量にする
+				PlaySoundMem(BGM_FAIL.handle, DX_PLAYTYPE_BACK);
+				BGM_FAIL.Check = FALSE; //BGMが1回
+			}
 		}
+
+
 
 		//フォールトを点滅
 		if (ImageEndFAIL.Cnt < ImageEndFAIL.CntMAX)
@@ -1710,7 +1751,13 @@ VOID MY_END_DRAW(VOID)
 
 	}
 
-	DrawString(0, 0, "エンド画面(エスケープキーを押して下さい)", GetColor(255, 255, 255));
+	//BGMが流れているなら
+		if (CheckSoundMem(BGM.handle) != 0)
+		{
+			StopSoundMem(BGM.handle);	//BGMを止める
+		}
+
+	DrawString(0, 0, "(エスケープキーを押して下さい)", GetColor(255, 255, 255));
 	return;
 }
 
@@ -1856,12 +1903,12 @@ BOOL MY_LOAD_IMAGE(VOID)
 	player.speed = CHARA_SPEED_LOW;									//スピードを設定
 
 
-	////敵の画像
+	//敵の画像
 	//strcpy_s(enemy.image.path, IMAGE_ENEMY_PATH);		//パスの設定
 	//enemy.image.handle = LoadGraph(enemy.image.path);	//読み込み
 	//if (enemy.image.handle == -1)
 	//{
-	//	//エラーメッセージ表示
+	//	エラーメッセージ表示
 	//	MessageBox(GetMainWindowHandle(), IMAGE_ENEMY_PATH, IMAGE_LOAD_ERR_TITLE, MB_OK);
 	//	return FALSE;
 	//}
@@ -1872,7 +1919,7 @@ BOOL MY_LOAD_IMAGE(VOID)
 	//enemy.CenterY = enemy.image.y + enemy.image.height / 2;		//画像の縦の中心を探す
 	//enemy.speed = CHARA_SPEED_LOW;									//スピードを設定
 
-	//プレイヤーの画像(こうち)
+	//敵の画像
 	strcpy_s(enemy.image.path, IMAGE_ENEMY_PATH);		//パスの設定
 	enemy.image.handle = LoadGraph(enemy.image.path);	//読み込み
 	if (enemy.image.handle == -1)
@@ -1886,7 +1933,7 @@ BOOL MY_LOAD_IMAGE(VOID)
 	enemy.image.y = GAME_HEIGHT -600;	//上下中央揃え
 	enemy.CenterX = enemy.image.x + enemy.image.width / 2;		//画像の横の中心を探す
 	enemy.CenterY = enemy.image.y + enemy.image.height / 2;		//画像の縦の中心を探す
-	enemy.speed = CHARA_SPEED_LOW;								//スピードを設定
+	enemy.speed = ENEMY_SPEED_LOW;								//スピードを設定
 
 
 
@@ -1970,7 +2017,7 @@ BOOL MY_LOAD_IMAGE(VOID)
 	for (int cnt = 0; cnt < TAMA_MAX; cnt++)
 	{
 		//パスをコピー
-		strcpyDx(enemy.tama[cnt].path, TEXT(TAMA_TANE_PATH));
+		strcpyDx(enemy.tama[cnt].path, TEXT(TAMA_HANE_PATH));
 
 		for (int i_num = 0; i_num < TAMA_DIV_NUM; i_num++)
 		{
@@ -2003,7 +2050,7 @@ BOOL MY_LOAD_IMAGE(VOID)
 		enemy.tama[cnt].nowImageKind = 0;
 
 		//弾のスピードを設定する
-		enemy.tama[cnt].speed = CHARA_SPEED_LOW;
+		enemy.tama[cnt].speed = ENEMY_SPEED_LOW;
 	}
 
 
@@ -2182,6 +2229,10 @@ BOOL MY_CHECK_MAP1_PLAYER_COLL(RECT player)
 					GameEndKind = GAME_END_FAIL;	//ミッションフォールト！
 
 					GameScene = GAME_SCENE_END;
+
+					BGM_FAIL.Check = TRUE;
+
+					
 
 
 					return TRUE;
