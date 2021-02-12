@@ -76,7 +76,7 @@
 
 #define TAMA_RED_PATH			TEXT(".\\IMAGE\\TAMA\\red.png")		//赤弾の画像
 #define TAMA_GREEN_PATH			TEXT(".\\IMAGE\\TAMA\\green.png")	//青弾の画像
-#define TAMA_HANE_PATH			TEXT(".\\IMAGE\\TAMA\\hane.png")	//緑弾の画像
+#define TAMA_HANE_PATH			TEXT(".\\IMAGE\\TAMA\\hane2.png")	//緑弾の画像
 #define TAMA_TANE_PATH		TEXT(".\\IMAGE\\TAMA\\tane.png")	//黄弾の画像
 
 #define TAMA_DIV_WIDTH		16	//画像を分割する幅サイズ
@@ -945,12 +945,12 @@ VOID MY_START_PROC(VOID)
 		//enemy.image.y = Etate;
 
 		////敵の中心位置を計算する
-		//enemy.CenterX = startPt.x;
-		//enemy.CenterY = startPt.y;
+		enemy.CenterX = startPt.x;
+		enemy.CenterY = startPt.y;
 
 		//敵の画像の位置を設定する
-		//enemy.image.x = enemy.CenterX;
-		//enemy.image.y = enemy.CenterY;
+		/*enemy.image.x = enemy.CenterX;
+		enemy.image.y = enemy.CenterY;*/
 
 		//敵の当たる以前の位置を設定する
 		enemy.collBeforePt.x = enemy.CenterX;
@@ -1243,6 +1243,8 @@ VOID MY_PLAY_PROC(VOID)
 		return;	//強制的にエンド画面に飛ぶ
 	}
 
+
+
 	//敵に触れているかチェック
 	if (MY_CHECK_RECT_COLL(PlayerRect, EnemyRect) == TRUE)
 	{
@@ -1262,6 +1264,9 @@ VOID MY_PLAY_PROC(VOID)
 
 		return;	//強制的にエンド画面に飛ぶ
 	}
+
+
+
 
 
 
@@ -1305,8 +1310,53 @@ VOID MY_PLAY_PROC(VOID)
 
 	//敵
 
-	//右に移動を押した時
-	if (MY_KEY_DOWN(KEY_INPUT_D) == TRUE)
+	////右に移動を押した時(もともとのやつ)
+	//if (MY_KEY_DOWN(KEY_INPUT_D) == TRUE)
+	//{
+	//	//ショットが撃てる
+	//	if (enemy.CanShot == TRUE)
+	//	{
+	//		//ショット発射！！
+	//		PlaySoundMem(enemy.musicShot.handle, DX_PLAYTYPE_BACK);
+	//		enemy.CanShot = FALSE;
+
+	//		//空いているスロットで、弾の描画をする
+	//		for (int cnt = 0; cnt < ENEMY_TAMA_MAX; cnt++)
+	//		{
+	//			if (enemy.tama[cnt].IsDraw == FALSE)
+	//			{
+	//				//弾のX位置は敵の中心から発射
+	//				enemy.tama[cnt].x = enemy.image.x + 50;
+
+	//				
+	//				enemy.tama[cnt].y = enemy.CenterY + enemy.tama[cnt].width / 2;
+
+
+	//				//弾を描画する
+	//				enemy.tama[cnt].IsDraw = TRUE;
+
+	//				break;
+	//			}
+	//		}
+	//	}
+	//}
+
+	////ショットが撃てないとき
+	//if (enemy.CanShot == FALSE)
+	//{
+	//	//リロード時間が終わったとき
+	//	if (enemy.ShotReLoadCnt == enemy.ShotReLoadCntMAX)
+	//	{
+	//		enemy.ShotReLoadCnt = 0;
+	//		enemy.CanShot = TRUE;		//再びショットできる
+	//	}
+
+	//	enemy.ShotReLoadCnt++;	//リロードする
+	//}
+
+
+	//マウスの左ボタンをクリックしたとき
+	if (MY_MOUSE_DOWN(MOUSE_INPUT_LEFT) == TRUE)
 	{
 		//ショットが撃てるとき
 		if (enemy.CanShot == TRUE)
@@ -1316,16 +1366,15 @@ VOID MY_PLAY_PROC(VOID)
 			enemy.CanShot = FALSE;
 
 			//空いているスロットで、弾の描画をする
-			for (int cnt = 0; cnt < ENEMY_TAMA_MAX; cnt++)
+			for (int cnt = 0; cnt < TAMA_MAX; cnt++)
 			{
 				if (enemy.tama[cnt].IsDraw == FALSE)
 				{
-					//弾のX位置は敵の中心から発射
+					//弾のX位置はプレイヤーの中心から発射
 					enemy.tama[cnt].x = enemy.image.x + 50;
 
-					
+					//弾のY位置はプレイヤーの上部分から発射
 					enemy.tama[cnt].y = enemy.CenterY - enemy.tama[cnt].width / 2;
-
 
 					//弾を描画する
 					enemy.tama[cnt].IsDraw = TRUE;
@@ -1336,8 +1385,19 @@ VOID MY_PLAY_PROC(VOID)
 		}
 	}
 
+	//ショットが撃てないとき
+	if (enemy.CanShot == FALSE)
+	{
+		//リロード時間が終わったとき
+		if (enemy.ShotReLoadCnt == enemy.ShotReLoadCntMAX)
+		{
+			enemy.ShotReLoadCnt = 0;
+			enemy.CanShot = TRUE;		//再びショットできる
+		}
 
-
+		enemy.ShotReLoadCnt++;	//リロードする
+	}
+	//-------------------------------------------------------------
 
 
 	//プレイヤー
@@ -1537,55 +1597,109 @@ VOID MY_PLAY_DRAW(VOID)
 
 		}
 
-		//敵
+	}
 
-		//弾の情報を生成
-		for (int cnt = 0; cnt < ENEMY_TAMA_MAX; cnt++)
+	//敵
+
+	//プレイヤー
+
+	//弾の情報を生成
+	for (int cnt = 0; cnt < TAMA_MAX; cnt++)
+	{
+		//描画できる弾の処理
+		if (enemy.tama[cnt].IsDraw == TRUE)
 		{
-			//描画できる弾の処理
-			if (enemy.tama[cnt].IsDraw == TRUE)
+			//弾を描画する
+			DrawGraph(
+				enemy.tama[cnt].x,
+				enemy.tama[cnt].y,
+				enemy.tama[cnt].handle[enemy.tama[cnt].nowImageKind],	//現在の画像の種類にあったハンドル
+				TRUE);
+
+			//弾の表示フレームを増やす
+			if (enemy.tama[cnt].changeImageCnt < enemy.tama[cnt].changeImageCntMAX)
 			{
-				//弾を描画する
-				DrawGraph(
-					enemy.tama[cnt].x,
-					enemy.tama[cnt].y,
-					enemy.tama[cnt].handle[enemy.tama[cnt].nowImageKind],	//現在の画像の種類にあったハンドル
-					TRUE);
-
-				//弾の表示フレームを増やす
-				if (enemy.tama[cnt].changeImageCnt < enemy.tama[cnt].changeImageCntMAX)
-				{
-					enemy.tama[cnt].changeImageCnt++;
-				}
-				else
-				{
-					//現在表示している弾の種類が、まだあるとき
-					if (enemy.tama[cnt].nowImageKind < TAMA_DIV_NUM - 1)	//-1しないと、最後の種類のときに++されてしまう
-					{
-						enemy.tama[cnt].nowImageKind++;	//弾を次の種類にする
-					}
-					else
-					{
-						enemy.tama[cnt].nowImageKind = 0;	//弾の種類をリセットする
-					}
-
-					enemy.tama[cnt].changeImageCnt = 0;
-				}
-
-				//弾を上に移動させる
-				if (enemy.tama[cnt].x < 0)
-				{
-
-					enemy.tama[cnt].IsDraw = FALSE;	//描画終了
-				}
-				else
-				{
-					enemy.tama[cnt].x -= enemy.tama[cnt].speed;
-				}
+				enemy.tama[cnt].changeImageCnt++;
 			}
+			else
+			{
+				//現在表示している弾の種類が、まだあるとき
+				if (enemy.tama[cnt].nowImageKind < TAMA_DIV_NUM - 1)	//-1しないと、最後の種類のときに++されてしまう
+				{
+					enemy.tama[cnt].nowImageKind++;	//弾を次の種類にする
+				}
+				else
+				{
+					enemy.tama[cnt].nowImageKind = 0;	//弾の種類をリセットする
+				}
+
+				enemy.tama[cnt].changeImageCnt = 0;
+			}
+
+			//弾を横に移動させる
+			if (enemy.tama[cnt].x < 0)
+			{
+
+				enemy.tama[cnt].IsDraw = FALSE;	//描画終了
+			}
+			else
+			{
+				enemy.tama[cnt].x -= enemy.tama[cnt].speed;
+			}
+
 		}
 
 	}
+
+	////敵(もともとのやつ)
+
+	////弾の情報を生成
+	//for (int cnt = 0; cnt < ENEMY_TAMA_MAX; cnt++)
+	//{
+	//	//描画できる弾の処理
+	//	if (enemy.tama[cnt].IsDraw == TRUE)
+	//	{
+	//		//弾を描画する
+	//		DrawGraph(
+	//			enemy.tama[cnt].x,
+	//			enemy.tama[cnt].y,
+	//			enemy.tama[cnt].handle[enemy.tama[cnt].nowImageKind],	//現在の画像の種類にあったハンドル
+	//			TRUE);
+
+	//		//弾の表示フレームを増やす
+	//		if (enemy.tama[cnt].changeImageCnt < enemy.tama[cnt].changeImageCntMAX)
+	//		{
+	//			enemy.tama[cnt].changeImageCnt++;
+	//		}
+	//		else
+	//		{
+	//			//現在表示している弾の種類が、まだあるとき
+	//			if (enemy.tama[cnt].nowImageKind < TAMA_DIV_NUM - 1)	//-1しないと、最後の種類のときに++されてしまう
+	//			{
+	//				enemy.tama[cnt].nowImageKind++;	//弾を次の種類にする
+	//			}
+	//			else
+	//			{
+	//				enemy.tama[cnt].nowImageKind = 0;	//弾の種類をリセットする
+	//			}
+
+	//			enemy.tama[cnt].changeImageCnt = 0;
+	//		}
+
+	//		//弾を上に移動させる
+	//		if (enemy.tama[cnt].x < 0)
+	//		{
+
+	//			enemy.tama[cnt].IsDraw = FALSE;	//描画終了
+	//		}
+	//		else
+	//		{
+	//			enemy.tama[cnt].x += enemy.tama[cnt].speed;
+	//		}
+	//	}
+	//}
+
+	
 
 	DrawString(0, 0, "プレイ画面(スペースキーを押して下さい)", GetColor(255, 255, 255));
 	return;
@@ -1903,21 +2017,21 @@ BOOL MY_LOAD_IMAGE(VOID)
 	player.speed = CHARA_SPEED_LOW;									//スピードを設定
 
 
-	//敵の画像
+	////敵の画像
 	//strcpy_s(enemy.image.path, IMAGE_ENEMY_PATH);		//パスの設定
 	//enemy.image.handle = LoadGraph(enemy.image.path);	//読み込み
 	//if (enemy.image.handle == -1)
 	//{
-	//	エラーメッセージ表示
+	//	//エラーメッセージ表示
 	//	MessageBox(GetMainWindowHandle(), IMAGE_ENEMY_PATH, IMAGE_LOAD_ERR_TITLE, MB_OK);
 	//	return FALSE;
 	//}
 	//GetGraphSize(enemy.image.handle, &enemy.image.width, &enemy.image.height);	//画像の幅と高さを取得
 	//enemy.image.x = GAME_WIDTH / 2 - enemy.image.width / 2;		//左右中央揃え
-	//enemy.image.y = GAME_HEIGHT / 2 - enemy.image.height / 2;		//上下中央揃え
+	//enemy.image.y = GAME_HEIGHT / 2 - enemy.image.height / 2;	//上下中央揃え
 	//enemy.CenterX = enemy.image.x + enemy.image.width / 2;		//画像の横の中心を探す
 	//enemy.CenterY = enemy.image.y + enemy.image.height / 2;		//画像の縦の中心を探す
-	//enemy.speed = CHARA_SPEED_LOW;									//スピードを設定
+	//enemy.speed = CHARA_SPEED_LOW;								//スピードを設定
 
 	//敵の画像
 	strcpy_s(enemy.image.path, IMAGE_ENEMY_PATH);		//パスの設定
@@ -1945,9 +2059,14 @@ BOOL MY_LOAD_IMAGE(VOID)
 		TAMA_DIV_WIDTH, TAMA_DIV_HEIGHT,					//画像を分割するの幅と高さ
 		&player.tama[0].handle[0]);							//分割した画像が入るハンドル
 
-	
 
-
+	//羽の画像を分割する
+	int tamaHaneRes = LoadDivGraph(
+		TAMA_HANE_PATH,										//赤弾のパス
+		TAMA_DIV_NUM, TAMA_DIV_TATE, TAMA_DIV_YOKO,			//赤弾を分割する数
+		TAMA_DIV_WIDTH, TAMA_DIV_HEIGHT,					//画像を分割するの幅と高さ
+		&enemy.tama[0].handle[0]);							//分割した画像が入るハンドル
+	    
 
 
 
@@ -1958,6 +2077,12 @@ BOOL MY_LOAD_IMAGE(VOID)
 		return FALSE;
 	}
 	
+	if (tamaHaneRes == -1)
+	{
+		//エラーメッセージ表示
+		MessageBox(GetMainWindowHandle(), TAMA_HANE_PATH, IMAGE_LOAD_ERR_TITLE, MB_OK);
+		return FALSE;
+	}
 
 
 
